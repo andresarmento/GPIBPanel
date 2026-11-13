@@ -2,19 +2,19 @@
   import { api } from "./lib/api.js";
   import Conexao from "./lib/Conexao.svelte";
   import ConsoleGpib from "./lib/ConsoleGpib.svelte";
+  import Controle from "./lib/Controle.svelte";
   import Equipamentos from "./lib/Equipamentos.svelte";
-  import TesteDriver from "./lib/TesteDriver.svelte";
 
   let health = $state(null);
   let error = $state(null);
   let bus = $state(null); // status do barramento (GET /api/bus)
 
   const tabs = [
+    ["controle", "Controle"],
     ["equipamentos", "Equipamentos"],
-    ["driver", "Teste de driver"],
     ["console", "Console GPIB"],
   ];
-  let tab = $state("equipamentos");
+  let tab = $state("controle");
 
   async function check() {
     error = null;
@@ -65,8 +65,10 @@
       </nav>
 
       <!-- "hidden" em vez de {#if}: cada aba mantém seu estado (ex.: histórico do console) -->
+      <div class:hidden={tab !== "controle"}>
+        <Controle visible={tab === "controle"} busConnected={!!bus?.connected} />
+      </div>
       <div class:hidden={tab !== "equipamentos"}><Equipamentos connected={bus?.connected} /></div>
-      <div class:hidden={tab !== "driver"}><TesteDriver connected={bus?.connected} /></div>
       <div class:hidden={tab !== "console"}><ConsoleGpib connected={bus?.connected} /></div>
     </div>
   {/if}

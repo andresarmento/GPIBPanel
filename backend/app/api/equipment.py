@@ -39,14 +39,20 @@ def get_equipment(equipment_id: int, request: Request) -> dict:
     return _store(request).get(equipment_id)
 
 
+# async: o poke (avisar a leitura automática) precisa rodar no loop do servidor
+
+
 @router.put("/{equipment_id}")
-def update_equipment(equipment_id: int, body: EquipmentIn, request: Request) -> dict:
-    return _store(request).update(equipment_id, **body.model_dump())
+async def update_equipment(equipment_id: int, body: EquipmentIn, request: Request) -> dict:
+    eq = _store(request).update(equipment_id, **body.model_dump())
+    request.app.state.live.poke(equipment_id)  # endereço/driver podem ter mudado
+    return eq
 
 
 @router.delete("/{equipment_id}", status_code=204)
-def delete_equipment(equipment_id: int, request: Request) -> Response:
+async def delete_equipment(equipment_id: int, request: Request) -> Response:
     _store(request).delete(equipment_id)
+    request.app.state.live.poke(equipment_id)  # as telas recebem "removed"
     return Response(status_code=204)
 
 

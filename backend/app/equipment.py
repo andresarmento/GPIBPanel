@@ -10,6 +10,8 @@ from app.gpib.transport import MAX_ADDRESS, MIN_ADDRESS
 
 MAX_IMAGE_BYTES = 5 * 1024 * 1024
 MAX_NAME = 100
+MIN_POLL_MS = 100
+MAX_POLL_MS = 60_000
 
 # Assinatura dos primeiros bytes -> tipo da imagem
 _IMAGE_SIGNATURES = [
@@ -19,7 +21,7 @@ _IMAGE_SIGNATURES = [
     (b"GIF89a", "image/gif"),
 ]
 
-_COLUMNS = "id, name, address, driver, notes, image_type, created_at, updated_at"
+_COLUMNS = "id, name, address, driver, notes, poll_ms, image_type, created_at, updated_at"
 
 
 def detect_image_type(data: bytes) -> str | None:
@@ -107,6 +109,16 @@ class EquipmentStore:
             cur = con.execute("DELETE FROM equipment WHERE id = ?", (equipment_id,))
         if cur.rowcount == 0:
             raise NotFound(f"Equipamento {equipment_id} não existe")
+
+    def set_poll(self, equipment_id: int, poll_ms: int) -> dict:
+        """Intervalo da leitura automática (0 = pausado). Não mexe em updated_at."""
+        if poll_ms != 0 and not MIN_POLL_MS <= poll_ms <= MAX_POLL_MS:
+            raise Invalid(f"Intervalo inválido: use 0 (pausado) ou de {MIN_POLL_MS} a {MAX_POLL_MS} ms")
+        with self.db.connect() as con:
+            cur = con.execute("UPDATE equipment SET poll_ms = ? WHERE id = ?", (poll_ms, equipment_id))
+        if cur.rowcount == 0:
+            raise NotFound(f"Equipamento {equipment_id} não existe")
+        return self.get(equipment_id)
 
     # --- foto --------------------------------------------------------------
 

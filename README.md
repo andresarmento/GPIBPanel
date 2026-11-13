@@ -5,7 +5,7 @@ Painel web local para controlar instrumentos GPIB (via adaptador AR488).
 - **backend/**: FastAPI (Python)
 - **frontend/**: Svelte 5 + Vite + Tailwind
 
-Plano e andamento: [FASES.md](FASES.md)
+Plano e andamento: [FASES.md](FASES.md) · Ideias para o futuro: [TODO.md](TODO.md)
 
 ## Rodando em desenvolvimento
 
@@ -47,10 +47,7 @@ Abra http://localhost:5173. O Vite repassa `/api` para o backend na porta 8000.
   (contrato **PowerSupply**: canais, faixas, limites, ordem segura) e `e3632a.py` (driver).
   O driver é escolhido pelo modelo no `*IDN?` (`DRIVERS` em `drivers/__init__.py`).
 - Drivers são síncronos e rodam dentro da fila do barramento (`bus.transaction`).
-- API: `GET /api/drivers`, `POST /api/instruments/{addr}/identify`,
-  `GET /api/instruments/{addr}/psu/{canal}` (estado) e
-  `POST /api/instruments/{addr}/psu/{canal}` (`{"range":"P30V","voltage":12,"current":1,"output":true}`,
-  todos opcionais). Valor fora do limite → 422; erro do instrumento → 502.
+- API: `GET /api/drivers` e `POST /api/instruments/{addr}/identify` (*IDN? + driver reconhecido).
 
 ## Equipamentos
 
@@ -59,3 +56,14 @@ Abra http://localhost:5173. O Vite repassa `/api` para o backend na porta 8000.
 - API: `GET/POST /api/equipment`, `GET/PUT/DELETE /api/equipment/{id}`,
   `GET/PUT/DELETE /api/equipment/{id}/image` (upload multipart no campo `file`) e
   `POST /api/equipment/{id}/check` (responde? o modelo bate com o driver?).
+
+## Tempo real
+
+- `backend/app/live.py`: um leitor por equipamento observado chama `driver.snapshot()`
+  pela fila do barramento, no intervalo `poll_ms` do cadastro (0 = pausado).
+- WebSocket `/api/ws`: a tela manda `{"subscribe": [ids]}` e recebe
+  `{"type":"state","id":1,"ok":true,"status":"ok","data":{...},"poll_ms":1000,"cycle_ms":180,...}`.
+- `POST /api/equipment/{id}/psu/{canal}` (`{"range":"P30V","voltage":12,"current":1,"output":true}`,
+  todos opcionais; fora do limite → 422, erro do instrumento → 502) e
+  `PATCH /api/equipment/{id}/poll` (`{"poll_ms":500}`).
+- O proxy do Vite repassa o WebSocket (`ws: true` em `vite.config.js`).

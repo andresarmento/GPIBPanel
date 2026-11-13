@@ -45,14 +45,20 @@ async def connect(body: ConnectRequest, request: Request) -> dict:
     else:
         transport = SimulatedTransport()
     bus = _bus(request)
-    await bus.connect(transport)
+    try:
+        await bus.connect(transport)
+    finally:
+        request.app.state.live.poke_all()  # telas abertas leem de novo (ou mostram "desconectado")
     return bus.status()
 
 
 @router.post("/disconnect")
 async def disconnect(request: Request) -> dict:
     bus = _bus(request)
-    await bus.disconnect()
+    try:
+        await bus.disconnect()
+    finally:
+        request.app.state.live.poke_all()
     return bus.status()
 
 

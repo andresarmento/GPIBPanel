@@ -29,6 +29,8 @@ MIGRATIONS = [
         updated_at  TEXT NOT NULL
     )
     """,
+    # 2 (Fase 4): intervalo de leitura automática, em ms; 0 = pausado
+    "ALTER TABLE equipment ADD COLUMN poll_ms INTEGER NOT NULL DEFAULT 1000",
 ]
 
 

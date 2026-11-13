@@ -8,8 +8,8 @@ foi testada e validada.
 | 0 | Estrutura do projeto | ✅ concluída |
 | 1 | Transporte AR488 + simulado | ✅ concluída (validada no hardware real) |
 | 2 | Drivers | ✅ concluída (validada no hardware real) |
-| 3 | Cadastro de equipamentos | 🧪 implementada, aguardando validação |
-| 4 | Controle em tempo real | — |
+| 3 | Cadastro de equipamentos | ✅ concluída |
+| 4 | Controle em tempo real | 🧪 implementada, aguardando validação |
 | 5 | Painéis | — |
 | 6 | Scripts | — |
 | 7 | Acabamento | — |
@@ -51,7 +51,7 @@ foi testada e validada.
 tensão/corrente, trocar a faixa e ligar a saída funciona e as medições batem com o
 display da fonte; um valor fora da faixa (ex.: 20 V em P15V) é recusado sem enviar nada.
 
-## Fase 3 — Cadastro de equipamentos 🧪
+## Fase 3 — Cadastro de equipamentos ✅
 
 - CRUD de equipamentos (nome, endereço GPIB, driver, observações, foto) salvo em SQLite
   (`backend/data/gpibpanel.db`; a foto fica dentro do banco).
@@ -59,17 +59,29 @@ display da fonte; um valor fora da faixa (ex.: 20 V em P15V) é recusado sem env
 - Foto: PNG, JPEG, GIF ou WEBP, até 5 MB (o tipo é conferido pelo conteúdo do arquivo).
 - **Detectar** no formulário: pergunta `*IDN?` no endereço e escolhe o driver.
 - **Verificar** no card: confere se o equipamento responde e se o modelo bate com o driver.
-- Tela organizada em abas: Equipamentos · Teste de driver · Console GPIB.
+- Tela organizada em abas.
 
 **Pronto quando:** cadastrar a E3632A com foto (usando "detectar"), editar, ver
 "online" ao verificar, reiniciar o backend e o cadastro continuar lá; excluir funciona.
 
-## Fase 4 — Controle em tempo real
+## Fase 4 — Controle em tempo real 🧪
 
-- Leituras de tensão/corrente atualizando ao vivo via WebSocket.
-- Componente de canal de fonte (ajuste, liga/desliga, faixa).
-- Atualização automática das leituras (sem botão "ler"), com o **intervalo de leitura
-  configurável** pelo usuário (ex.: 250 ms, 500 ms, 1 s, 2 s, pausado).
+- Leituras ao vivo via WebSocket (`/api/ws`): o backend lê só os equipamentos que
+  alguma tela está mostrando (aba do navegador escondida = para de ler).
+- **Intervalo de leitura por equipamento**, salvo no cadastro: 250 ms, 500 ms, 1 s,
+  2 s, 5 s ou pausado. A tela mostra quanto cada leitura realmente leva e avisa
+  quando é mais lenta que o intervalo.
+- Componente **canal de fonte**: display de V/A medidos, faixa, tensão, corrente
+  (Enter aplica, Esc desfaz; campos pendentes ficam destacados) e liga/desliga.
+- Comandos pelo equipamento cadastrado (usa o driver salvo); depois de um comando a
+  tela atualiza na hora.
+- Instrumento sem resposta / barramento desconectado aparecem no status, sem travar.
+- Aba **Controle** substitui a provisória "Teste de driver".
+
+**Pronto quando:** na aba Controle a E3632A atualiza sozinha; mudar o intervalo muda
+o ritmo (e fica salvo após recarregar); ajustar V/I/faixa e ligar/desligar reflete na
+hora; com duas abas do navegador abertas, as duas mostram o mesmo; desligar o cabo/
+fonte mostra "sem resposta" e volta sozinho ao religar.
 
 ## Fase 5 — Painéis
 

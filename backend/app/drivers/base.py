@@ -76,6 +76,14 @@ class Instrument:
     def describe(cls) -> dict:
         return {"name": cls.name, "type": cls.type, "models": list(cls.models), "description": cls.description}
 
+    def snapshot(self) -> dict:
+        """Tudo o que a tela precisa mostrar do instrumento, numa leitura só.
+
+        É o que a leitura automática (Fase 4) chama a cada ciclo. Cada tipo de
+        equipamento define o formato.
+        """
+        raise NotImplementedError
+
     # --- SCPI comum ------------------------------------------------------
 
     def identify(self) -> Idn:

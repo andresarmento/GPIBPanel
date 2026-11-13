@@ -91,6 +91,9 @@ class PowerSupply(Instrument):
             current=current,
         )
 
+    def snapshot(self) -> dict:
+        return {"channels": [self.read_state(c.name).to_dict() for c in self.channels]}
+
     # --- ajustes --------------------------------------------------------------
 
     def apply(
