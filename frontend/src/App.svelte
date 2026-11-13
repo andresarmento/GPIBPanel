@@ -4,17 +4,19 @@
   import ConsoleGpib from "./lib/ConsoleGpib.svelte";
   import Controle from "./lib/Controle.svelte";
   import Equipamentos from "./lib/Equipamentos.svelte";
+  import Paineis from "./lib/painel/Paineis.svelte";
 
   let health = $state(null);
   let error = $state(null);
   let bus = $state(null); // status do barramento (GET /api/bus)
 
   const tabs = [
+    ["paineis", "Painéis"],
     ["controle", "Controle"],
     ["equipamentos", "Equipamentos"],
     ["console", "Console GPIB"],
   ];
-  let tab = $state("controle");
+  let tab = $state("paineis");
 
   async function check() {
     error = null;
@@ -65,6 +67,9 @@
       </nav>
 
       <!-- "hidden" em vez de {#if}: cada aba mantém seu estado (ex.: histórico do console) -->
+      <div class:hidden={tab !== "paineis"}>
+        <Paineis visible={tab === "paineis"} busConnected={!!bus?.connected} />
+      </div>
       <div class:hidden={tab !== "controle"}>
         <Controle visible={tab === "controle"} busConnected={!!bus?.connected} />
       </div>

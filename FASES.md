@@ -9,9 +9,9 @@ foi testada e validada.
 | 1 | Transporte AR488 + simulado | ✅ concluída (validada no hardware real) |
 | 2 | Drivers | ✅ concluída (validada no hardware real) |
 | 3 | Cadastro de equipamentos | ✅ concluída |
-| 4 | Controle em tempo real | 🧪 implementada, aguardando validação |
-| 5 | Painéis | — |
-| 6 | Scripts | — |
+| 4 | Controle em tempo real | ✅ concluída (validada no hardware real) |
+| 5 | Painéis | ✅ concluída |
+| 6 | Scripts | ⏳ próxima |
 | 7 | Acabamento | — |
 
 ---
@@ -64,7 +64,7 @@ display da fonte; um valor fora da faixa (ex.: 20 V em P15V) é recusado sem env
 **Pronto quando:** cadastrar a E3632A com foto (usando "detectar"), editar, ver
 "online" ao verificar, reiniciar o backend e o cadastro continuar lá; excluir funciona.
 
-## Fase 4 — Controle em tempo real 🧪
+## Fase 4 — Controle em tempo real ✅
 
 - Leituras ao vivo via WebSocket (`/api/ws`): o backend lê só os equipamentos que
   alguma tela está mostrando (aba do navegador escondida = para de ler).
@@ -83,9 +83,22 @@ o ritmo (e fica salvo após recarregar); ajustar V/I/faixa e ligar/desligar refl
 hora; com duas abas do navegador abertas, as duas mostram o mesmo; desligar o cabo/
 fonte mostra "sem resposta" e volta sozinho ao religar.
 
-## Fase 5 — Painéis
+## Fase 5 — Painéis ✅
 
-- Editor de painéis em grade: montar telas com os controles dos equipamentos.
+- Vários painéis com nome, salvos no SQLite (tabela `panels`, widgets em JSON).
+- Grade de 12 colunas: no modo **editar**, arrastar move, o canto inferior direito
+  redimensiona, encaixa nas células e não deixa sobrepor; ⚙ configura, ✕ remove.
+  Mudanças só valem ao **salvar** (cancelar descarta).
+- Widgets: **Canal de fonte** (completo), **Display** (V, A, W = V×A, ou valores
+  programados; casas decimais configuráveis), **Botão de saída**, **Texto** e
+  **Gráfico** (uma grandeza por gráfico, janela de 1/5/15/30 min, valor sob o mouse).
+- O gráfico usa só o histórico em memória desde que a página abriu.
+- Vários widgets do mesmo equipamento compartilham uma leitura só (intervalo do cadastro).
+- **Tela cheia** para monitor de bancada; o último painel aberto é lembrado.
+
+**Pronto quando:** criar um painel com os 5 tipos de widget para a E3632A, arrumar
+na grade, salvar, recarregar a página e ele voltar igual; controles e gráfico
+funcionando ao vivo; tela cheia ok; editar → cancelar descarta as mudanças.
 
 ## Fase 6 — Scripts
 
@@ -95,3 +108,5 @@ fonte mostra "sem resposta" e volta sozinho ao religar.
 
 - Estado seguro (desligar saídas em erro/encerramento), exportação CSV,
   empacotamento (FastAPI servindo o frontend compilado, um servidor só).
+- **Histórico das leituras** guardado no backend (o gráfico da Fase 5 só tem o que
+  chegou desde que a página abriu) e exportação dos dados do gráfico em **CSV**.

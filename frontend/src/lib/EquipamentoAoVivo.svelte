@@ -2,7 +2,7 @@
   // Card de um equipamento no controle em tempo real: status, intervalo de leitura e canais.
   import { api } from "./api.js";
   import CanalFonte from "./CanalFonte.svelte";
-  import { live, watch } from "./live.svelte.js";
+  import { channelReading, live, liveStatus, watch } from "./live.svelte.js";
 
   // equipment: cadastro; driver: descrição do driver (GET /api/drivers); visible: aba aberta
   let { equipment, driver, visible, busConnected } = $props();
@@ -32,16 +32,7 @@
   const slow = $derived(msg?.ok && pollMs > 0 && msg.cycle_ms > pollMs);
   let pollError = $state(null);
 
-  const status = $derived.by(() => {
-    if (!live.connected) return ["bg-slate-500", "conectando ao backend…"];
-    if (!msg) return ["bg-slate-500", "aguardando leitura…"];
-    if (msg.type === "removed") return ["bg-slate-500", "equipamento excluído"];
-    if (msg.status === "disconnected") return ["bg-slate-500", "barramento desconectado"];
-    if (msg.status === "timeout") return ["bg-red-500", "sem resposta"];
-    if (msg.status === "error") return ["bg-red-500", "erro"];
-    if (pollMs === 0) return ["bg-sky-500", "pausado"];
-    return ["bg-green-500 animate-pulse", "ao vivo"];
-  });
+  const status = $derived(liveStatus(msg, pollMs));
 
   async function setPoll(e) {
     pollError = null;
@@ -52,7 +43,6 @@
     }
   }
 
-  const channelState = (name) => (msg?.ok ? msg.data.channels.find((c) => c.channel === name) : undefined);
   const time = (t) => new Date(t * 1000).toLocaleTimeString();
 </script>
 
@@ -107,7 +97,7 @@
         <CanalFonte
           equipmentId={equipment.id}
           {spec}
-          reading={channelState(spec.name)}
+          reading={channelReading(msg, spec.name)}
           disabled={!busConnected || msg?.type === "removed"}
         />
       {/each}

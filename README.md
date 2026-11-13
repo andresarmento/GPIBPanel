@@ -67,3 +67,11 @@ Abra http://localhost:5173. O Vite repassa `/api` para o backend na porta 8000.
   todos opcionais; fora do limite → 422, erro do instrumento → 502) e
   `PATCH /api/equipment/{id}/poll` (`{"poll_ms":500}`).
 - O proxy do Vite repassa o WebSocket (`ws: true` em `vite.config.js`).
+
+## Painéis
+
+- `backend/app/panels.py`: painéis no SQLite; cada widget = `{id, type, x, y, w, h, config}`
+  numa grade de 12 colunas (o backend recusa sobreposição e widget fora da grade).
+- API: `GET/POST /api/panels`, `GET/PUT/DELETE /api/panels/{id}`.
+- Frontend em `frontend/src/lib/painel/`: `catalogo.js` (tipos de widget, tamanhos,
+  encaixe), `PainelGrade.svelte` (grade/arrastar), `Widget.svelte` e os widgets `W*.svelte`.

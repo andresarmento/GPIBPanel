@@ -31,6 +31,16 @@ MIGRATIONS = [
     """,
     # 2 (Fase 4): intervalo de leitura automática, em ms; 0 = pausado
     "ALTER TABLE equipment ADD COLUMN poll_ms INTEGER NOT NULL DEFAULT 1000",
+    # 3 (Fase 5): painéis; widgets = lista JSON com tipo, posição na grade e configuração
+    """
+    CREATE TABLE panels (
+        id          INTEGER PRIMARY KEY AUTOINCREMENT,
+        name        TEXT NOT NULL UNIQUE COLLATE NOCASE,
+        widgets     TEXT NOT NULL DEFAULT '[]',
+        created_at  TEXT NOT NULL,
+        updated_at  TEXT NOT NULL
+    )
+    """,
 ]
 
 
