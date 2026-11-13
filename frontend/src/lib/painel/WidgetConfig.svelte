@@ -1,19 +1,32 @@
 <script>
   // Janela de configuração de um widget. Chama onsave(config) ou oncancel().
   import { untrack } from "svelte";
-  import { QUANTITIES } from "../live.svelte.js";
-  import { CHART_WINDOWS, WIDGET_TYPES } from "./catalogo.js";
+  import { quantitiesFor } from "../live.svelte.js";
+  import TamanhoFonte from "../TamanhoFonte.svelte";
+  import { CHART_WINDOWS, TYPE_LABELS, WIDGET_TYPES } from "./catalogo.js";
 
   let { widget, ctx, onsave, oncancel } = $props();
 
   const type = untrack(() => WIDGET_TYPES[widget.type]);
   let cfg = $state(untrack(() => ({ ...structuredClone(type.config), ...structuredClone($state.snapshot(widget.config)) })));
 
-  const supplies = $derived(Object.values(ctx.equipment).filter((e) => e.type === "power_supply"));
+  // Equipamentos que este tipo de widget aceita (fontes, multímetros...)
+  const supplies = $derived(Object.values(ctx.equipment).filter((e) => type.accepts.includes(e.type)));
+  const eqType = $derived(ctx.equipment[cfg.equipment_id]?.type);
   const channels = $derived(ctx.drivers[ctx.equipment[cfg.equipment_id]?.driver]?.channels ?? []);
+  // Grandezas que o Display/Gráfico oferecem para o equipamento escolhido (null = multímetro)
+  const table = $derived(quantitiesFor(eqType));
   const quantities = $derived(
-    widget.type === "display" ? Object.entries(QUANTITIES) : Object.entries(QUANTITIES).filter(([k]) => !k.endsWith("_set")),
+    !table
+      ? []
+      : widget.type === "display"
+        ? Object.entries(table)
+        : Object.entries(table).filter(([k]) => !k.endsWith("_set")),
   );
+  // Trocou para um equipamento de outro tipo: escolhe a primeira grandeza dele
+  $effect(() => {
+    if (quantities.length && !quantities.some(([k]) => k === cfg.quantity)) cfg.quantity = quantities[0][0];
+  });
 
   // Primeiro equipamento/canal já escolhidos, para o caso comum (uma fonte só)
   if (type.needsEquipment && cfg.equipment_id == null && untrack(() => supplies.length)) {
@@ -64,11 +77,17 @@
             </label>
           {/if}
         {:else}
-          <p class="text-amber-400">Nenhuma fonte cadastrada. Cadastre na aba Equipamentos.</p>
+          <p class="text-amber-400">
+            Nenhum equipamento do tipo {type.accepts.map((t) => TYPE_LABELS[t]).join(" ou ")} cadastrado. Cadastre na aba
+            Equipamentos.
+          </p>
         {/if}
       {/if}
 
-      {#if widget.type === "display" || widget.type === "chart"}
+      {#if (widget.type === "display" || widget.type === "chart") && eqType === "multimeter"}
+        <p class="text-xs text-slate-500">Mostra a leitura na função escolhida no multímetro (V, A, Ω, Hz...).</p>
+      {/if}
+      {#if (widget.type === "display" || widget.type === "chart") && quantities.length}
         <label class="flex flex-col gap-1">
           grandeza
           <select class={input} bind:value={cfg.quantity}>
@@ -87,10 +106,14 @@
             type="number"
             min="0"
             max="6"
-            placeholder={String(QUANTITIES[cfg.quantity]?.decimals ?? 3)}
+            placeholder={table?.[cfg.quantity]?.decimals != null ? String(table[cfg.quantity].decimals) : "auto"}
             bind:value={cfg.decimals}
           />
         </label>
+      {/if}
+
+      {#if ["display", "dmm", "psu_channel", "fgen", "rfgen"].includes(widget.type)}
+        <TamanhoFonte value={cfg.font_size} oninput={(v) => (cfg.font_size = v)} onchange={(v) => (cfg.font_size = v)} />
       {/if}
 
       {#if widget.type === "chart"}

@@ -1,50 +1,93 @@
-// Tipos de widget dos painéis: nome, tamanho padrão/mínimo (em células da grade) e configuração inicial.
+// Tipos de widget dos painéis: nome, tamanho padrão/mínimo (em células da grade), configuração
+// inicial e os tipos de equipamento aceitos (accepts; vazio = não usa equipamento).
 
-export const ROW_PX = 56; // altura de uma linha da grade
+// Grade de 24 colunas (vem do backend) com linhas de 24 px: 2 células = 1 célula da
+// grade antiga (12 colunas, linhas de 56 px), com o mesmo espaço entre elas.
+export const ROW_PX = 24; // altura de uma linha da grade
 export const GAP_PX = 8; // espaço entre células
+
+// Tamanho do número (px) nos widgets Multímetro e Display: escolhido por controle
+// deslizante entre estes limites; se não couber no widget, diminui só o necessário.
+export const FONT_MIN = 16;
+export const FONT_MAX = 200;
+export const FONT_DEFAULT = 48;
 
 export const WIDGET_TYPES = {
   psu_channel: {
-    label: "Canal de fonte",
+    label: "Fonte",
     hint: "display + ajustes + liga/desliga",
-    size: [6, 5],
-    min: [4, 4],
+    size: [12, 10],
+    min: [8, 8],
     needsEquipment: true,
-    config: {},
+    accepts: ["power_supply"],
+    config: { font_size: FONT_DEFAULT },
+  },
+  dmm: {
+    label: "Multímetro",
+    hint: "display + função, faixa e velocidade",
+    size: [12, 8],
+    min: [8, 6], // em 6 linhas (184 px) ainda cabem display (número menor), funções e faixa
+    needsEquipment: true,
+    accepts: ["multimeter"],
+    config: { font_size: FONT_DEFAULT },
+  },
+  fgen: {
+    label: "Gerador",
+    hint: "frequência, amplitude, offset e forma de onda",
+    size: [12, 10],
+    min: [8, 8],
+    needsEquipment: true,
+    accepts: ["function_generator"],
+    config: { font_size: FONT_DEFAULT },
+  },
+  rfgen: {
+    label: "Gerador RF",
+    hint: "frequência, nível (dBm) e liga/desliga do RF",
+    size: [12, 8],
+    min: [8, 6],
+    needsEquipment: true,
+    accepts: ["rf_generator"],
+    config: { font_size: FONT_DEFAULT },
   },
   display: {
     label: "Display",
-    hint: "uma grandeza em fonte grande",
-    size: [3, 2],
-    min: [2, 1],
+    hint: "uma leitura em fonte grande",
+    size: [6, 4],
+    min: [4, 2],
     needsEquipment: true,
-    config: { quantity: "voltage", decimals: null, label: "" },
+    accepts: ["power_supply", "multimeter", "function_generator", "rf_generator"],
+    config: { quantity: "voltage", decimals: null, label: "", font_size: FONT_DEFAULT },
   },
   output_button: {
     label: "Botão de saída",
     hint: "liga/desliga um canal",
-    size: [2, 2],
-    min: [1, 1],
+    size: [4, 4],
+    min: [2, 2],
     needsEquipment: true,
+    accepts: ["power_supply"],
     config: { label: "" },
   },
   chart: {
     label: "Gráfico",
-    hint: "uma grandeza ao longo do tempo",
-    size: [6, 4],
-    min: [3, 3],
+    hint: "uma leitura ao longo do tempo",
+    size: [12, 8],
+    min: [6, 6],
     needsEquipment: true,
+    accepts: ["power_supply", "multimeter", "function_generator", "rf_generator"],
     config: { quantity: "voltage", window_s: 300, label: "" },
   },
   text: {
     label: "Texto",
     hint: "título ou anotação",
-    size: [4, 1],
+    size: [8, 2],
     min: [1, 1],
     needsEquipment: false,
+    accepts: [],
     config: { text: "Texto", size: "lg", align: "left" },
   },
 };
+
+export const TYPE_LABELS = { power_supply: "fonte", multimeter: "multímetro", function_generator: "gerador", rf_generator: "gerador de RF" };
 
 export const CHART_WINDOWS = [
   [60, "1 min"],

@@ -1,11 +1,12 @@
 <script>
   // Gráfico de UMA grandeza ao longo do tempo (sem dois eixos Y: para V e A juntos,
   // use dois gráficos lado a lado). Dados: histórico em memória desde que a página abriu.
-  import { getHistory, QUANTITIES, quantityValue } from "../live.svelte.js";
+  import { exponent, prefixed } from "../dmm.js";
+  import { getHistory } from "../live.svelte.js";
 
-  let { eqId, channel, quantity, windowS, msg } = $props();
-
-  const q = $derived(QUANTITIES[quantity] ?? QUANTITIES.voltage);
+  // q: {label, unit, line, decimals, si}; si = escala com prefixo (m, µ, k...) conforme os valores.
+  // pick(data): o valor a desenhar de uma leitura (msg.data), ou undefined para interromper a linha.
+  let { eqId, q, pick, windowS, msg } = $props();
   const M = { l: 58, r: 12, t: 10, b: 22 }; // margens do desenho
 
   let width = $state(0);
@@ -30,19 +31,23 @@
     const pts = [];
     for (const p of getHistory(eqId)) {
       if (p.t < start) continue;
-      if (p.channels === null) {
+      if (p.data === null) {
         if (pts.length && pts[pts.length - 1] !== null) pts.push(null);
         continue;
       }
-      const v = quantityValue(
-        p.channels.find((c) => c.channel === channel),
-        quantity,
-      );
+      const v = pick(p.data);
       if (v === undefined || !Number.isFinite(v)) {
         if (pts.length && pts[pts.length - 1] !== null) pts.push(null);
       } else pts.push({ t: p.t, v });
     }
-    return { start, end, pts, valid: pts.filter(Boolean) };
+    let valid = pts.filter(Boolean);
+    // Prefixo SI (ex.: mA, kΩ) escolhido pelo maior valor da janela
+    const e = q.si ? exponent(Math.max(0, ...valid.map((p) => Math.abs(p.v))), q.unit) : 0;
+    if (e) {
+      for (let i = 0; i < pts.length; i++) if (pts[i]) pts[i] = { t: pts[i].t, v: pts[i].v / 10 ** e };
+      valid = pts.filter(Boolean);
+    }
+    return { start, end, pts, valid, unit: q.si ? prefixed(e, q.unit) : q.unit };
   });
 
   // Escala Y com valores "redondos"
@@ -58,7 +63,7 @@
     let lo = vals.length ? Math.min(...vals) : 0;
     let hi = vals.length ? Math.max(...vals) : 1;
     if (hi - lo < 1e-9) {
-      const pad = Math.max(Math.abs(hi) * 0.05, 5 * 10 ** -q.decimals);
+      const pad = q.si ? Math.max(Math.abs(hi) * 1e-4, 1e-6) : Math.max(Math.abs(hi) * 0.05, 5 * 10 ** -q.decimals);
       lo -= pad;
       hi += pad;
     }
@@ -142,6 +147,8 @@
     hover = Math.abs(pts[a].t - t) <= Math.abs(pts[b].t - t) ? pts[a] : pts[b];
   }
 
+  const fmtValue = (v) => (q.si ? String(+v.toPrecision(7)) : v.toFixed(q.decimals));
+
   const last = $derived(view.valid[view.valid.length - 1]);
 </script>
 
@@ -163,7 +170,7 @@
           {v.toFixed(yScale.decimals)}
         </text>
       {/each}
-      <text x="4" y={M.t + 2} dy="0.7em" font-size="11" fill="#64748b">{q.unit}</text>
+      <text x="4" y={M.t + 2} dy="0.7em" font-size="11" fill="#64748b">{view.unit}</text>
 
       <!-- eixo X (tempo) -->
       {#each xTicks as t, i}
@@ -194,12 +201,12 @@
         class="pointer-events-none absolute top-2 rounded border border-slate-600 bg-slate-900/95 px-2 py-1 text-xs shadow"
         style={left > width / 2 ? `right: ${width - left + 8}px` : `left: ${left + 8}px`}
       >
-        <div class="font-mono text-slate-100 tabular-nums">{hover.v.toFixed(q.decimals)} {q.unit}</div>
+        <div class="font-mono text-slate-100 tabular-nums">{fmtValue(hover.v)} {view.unit}</div>
         <div class="text-slate-400">{fmtTime(hover.t)}</div>
       </div>
     {:else if last}
       <div class="pointer-events-none absolute right-3 top-2 font-mono text-xs text-slate-300 tabular-nums">
-        {last.v.toFixed(q.decimals)} {q.unit}
+        {fmtValue(last.v)} {view.unit}
       </div>
     {/if}
 

@@ -1,20 +1,14 @@
 <script>
-  // Card de um equipamento no controle em tempo real: status, intervalo de leitura e canais.
-  import { api } from "./api.js";
+  // Card de um equipamento em tempo real (janela "ao vivo"): status e controles.
+  // O intervalo de leitura só é mostrado aqui; ele é ajustado no cadastro.
   import CanalFonte from "./CanalFonte.svelte";
-  import { channelReading, live, liveStatus, watch } from "./live.svelte.js";
+  import Gerador from "./Gerador.svelte";
+  import GeradorRF from "./GeradorRF.svelte";
+  import Multimetro from "./Multimetro.svelte";
+  import { channelReading, live, liveStatus, pollLabel, watch } from "./live.svelte.js";
 
   // equipment: cadastro; driver: descrição do driver (GET /api/drivers); visible: aba aberta
   let { equipment, driver, visible, busConnected } = $props();
-
-  const INTERVALS = [
-    [250, "250 ms"],
-    [500, "500 ms"],
-    [1000, "1 s"],
-    [2000, "2 s"],
-    [5000, "5 s"],
-    [0, "pausado"],
-  ];
 
   // $derived do id: recarregar o cadastro (objeto novo, mesmo id) não reinicia a leitura
   const id = $derived(equipment.id);
@@ -26,22 +20,9 @@
 
   const msg = $derived(live.states[id]);
   const pollMs = $derived(msg?.poll_ms ?? equipment.poll_ms);
-  const intervals = $derived(
-    INTERVALS.some(([ms]) => ms === pollMs) ? INTERVALS : [...INTERVALS, [pollMs, `${pollMs} ms`]],
-  );
   const slow = $derived(msg?.ok && pollMs > 0 && msg.cycle_ms > pollMs);
-  let pollError = $state(null);
 
   const status = $derived(liveStatus(msg, pollMs));
-
-  async function setPoll(e) {
-    pollError = null;
-    try {
-      await api(`/equipment/${equipment.id}/poll`, { method: "PATCH", body: { poll_ms: Number(e.currentTarget.value) } });
-    } catch (err) {
-      pollError = err.message;
-    }
-  }
 
   const time = (t) => new Date(t * 1000).toLocaleTimeString();
 </script>
@@ -61,21 +42,6 @@
       <span class="text-slate-300">{status[1]}</span>
     </div>
 
-    <div class="ml-auto flex items-center gap-2 text-sm">
-      {#if msg?.type === "state"}
-        <span class="text-xs {slow ? 'text-amber-400' : 'text-slate-500'}" title="Tempo real de cada leitura completa">
-          {slow ? "⚠ " : ""}leitura {msg.cycle_ms} ms · {time(msg.time)}
-        </span>
-      {/if}
-      <label class="flex items-center gap-1">
-        intervalo
-        <select class="rounded bg-slate-800 px-2 py-1" value={pollMs} onchange={setPoll}>
-          {#each intervals as [ms, label]}
-            <option value={ms}>{label}</option>
-          {/each}
-        </select>
-      </label>
-    </div>
   </header>
 
   <div class="flex flex-col gap-4 p-3">
@@ -88,9 +54,6 @@
     {#if msg?.error && msg.status !== "disconnected"}
       <p class="text-sm text-red-400">✗ {msg.error}</p>
     {/if}
-    {#if pollError}
-      <p class="text-sm text-red-400">✗ {pollError}</p>
-    {/if}
 
     {#if driver?.type === "power_supply"}
       {#each driver.channels as spec (spec.name)}
@@ -101,8 +64,45 @@
           disabled={!busConnected || msg?.type === "removed"}
         />
       {/each}
+    {:else if driver?.type === "function_generator"}
+      {#each driver.channels as c (c.name)}
+        <Gerador
+          equipmentId={equipment.id}
+          {driver}
+          channel={c.name}
+          reading={channelReading(msg, c.name)}
+          disabled={!busConnected || msg?.type === "removed"}
+        />
+      {/each}
+    {:else if driver?.type === "rf_generator"}
+      {#each driver.channels as c (c.name)}
+        <GeradorRF
+          equipmentId={equipment.id}
+          {driver}
+          channel={c.name}
+          reading={channelReading(msg, c.name)}
+          disabled={!busConnected || msg?.type === "removed"}
+        />
+      {/each}
+    {:else if driver?.type === "multimeter"}
+      <Multimetro
+        equipmentId={equipment.id}
+        {driver}
+        reading={msg?.ok ? msg.data : undefined}
+        disabled={!busConnected || msg?.type === "removed"}
+      />
     {:else}
       <p class="text-sm text-slate-400">Ainda não há componente de controle para o driver {equipment.driver}.</p>
     {/if}
   </div>
+
+  <footer class="flex flex-wrap gap-x-3 border-t border-slate-700/60 px-3 py-1 text-xs text-slate-500">
+    <span title="Ajuste no cadastro do equipamento (editar)">{pollLabel(pollMs)}</span>
+    {#if msg?.type === "state"}
+      <span class={slow ? "text-amber-400" : ""} title="Tempo real de cada leitura completa">
+        {slow ? "⚠ " : ""}cada leitura leva {msg.cycle_ms} ms
+      </span>
+      <span class="ml-auto">última {time(msg.time)}</span>
+    {/if}
+  </footer>
 </section>

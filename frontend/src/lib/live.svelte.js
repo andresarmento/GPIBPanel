@@ -17,13 +17,13 @@ let retry = null;
 // quando live.states[id] muda.
 export const HISTORY_MS = 30 * 60 * 1000;
 const HISTORY_MAX = 20000;
-const history = new Map(); // id -> [{ t (ms), channels | null }]; null = interrupção da linha
+const history = new Map(); // id -> [{ t (ms), data | null }]; null = interrupção da linha
 
 function record(id, point) {
   let h = history.get(id);
   if (!h) history.set(id, (h = []));
   const last = h[h.length - 1];
-  if (point.channels === null && (!last || last.channels === null)) return; // uma interrupção basta
+  if (point.data === null && (!last || last.data === null)) return; // uma interrupção basta
   if (last && point.t <= last.t) return; // repetida (ex.: última leitura reenviada ao assinar)
   h.push(point);
   const limit = point.t - HISTORY_MS;
@@ -56,13 +56,13 @@ function connect() {
   };
   ws.onmessage = (e) => {
     const msg = JSON.parse(e.data);
-    if (msg.type === "state") record(msg.id, { t: msg.time * 1000, channels: msg.ok ? msg.data.channels : null });
+    if (msg.type === "state") record(msg.id, { t: msg.time * 1000, data: msg.ok ? msg.data : null });
     live.states[msg.id] = msg;
   };
   ws.onclose = () => {
     live.connected = false;
     ws = null;
-    for (const id of counts.keys()) record(id, { t: Date.now(), channels: null });
+    for (const id of counts.keys()) record(id, { t: Date.now(), data: null });
     // Backend reiniciou (ex.: --reload)? tenta de novo enquanto alguém estiver olhando
     if (counts.size && !retry) retry = setTimeout(connect, 2000);
   };
@@ -81,7 +81,7 @@ export function watch(id) {
     } else {
       counts.delete(id);
       delete live.states[id];
-      record(id, { t: Date.now(), channels: null }); // a linha do gráfico não "liga" o buraco
+      record(id, { t: Date.now(), data: null }); // a linha do gráfico não "liga" o buraco
     }
     sendSubscriptions();
   };
@@ -93,7 +93,30 @@ document.addEventListener("visibilitychange", sendSubscriptions);
 
 /** Leitura de um canal na mensagem (undefined se não há leitura válida). */
 export function channelReading(msg, channel) {
-  return msg?.ok ? msg.data.channels.find((c) => c.channel === channel) : undefined;
+  return msg?.ok ? msg.data.channels?.find((c) => c.channel === channel) : undefined;
+}
+
+// Intervalos de leitura oferecidos no cadastro (0 = sem leitura automática)
+export const POLL_INTERVALS = [
+  [250, "250 ms"],
+  [500, "500 ms"],
+  [1000, "1 s"],
+  [2000, "2 s"],
+  [5000, "5 s"],
+  [10000, "10 s"],
+  [0, "pausado (só lê ao abrir e após comandos)"],
+];
+
+/** "a cada 1 s", "a cada 250 ms", "pausada" */
+export function pollLabel(ms) {
+  if (ms === undefined || ms === null) return "";
+  if (ms === 0) return "leitura pausada";
+  return `leitura a cada ${ms % 1000 === 0 ? `${ms / 1000} s` : `${ms} ms`}`;
+}
+
+/** Leitura de multímetro (msg.data), ou undefined. */
+export function dmmReading(msg) {
+  return msg?.ok && msg.data.function !== undefined ? msg.data : undefined;
 }
 
 /** [classe da bolinha, texto] para o status de um equipamento. */
@@ -102,7 +125,10 @@ export function liveStatus(msg, pollMs) {
   if (!msg) return ["bg-slate-500", "aguardando leitura…"];
   if (msg.type === "removed") return ["bg-slate-500", "equipamento excluído"];
   if (msg.status === "disconnected") return ["bg-slate-500", "barramento desconectado"];
-  if (msg.status === "timeout") return ["bg-red-500", "sem resposta"];
+  if (msg.status === "timeout") {
+    // Quem não responde é tentado de novo cada vez mais espaçado (2 s, 5 s, 10 s, 30 s)
+    return ["bg-red-500", msg.retry_s ? `sem resposta · nova tentativa em ${Math.round(msg.retry_s)} s` : "sem resposta"];
+  }
   if (msg.status === "error") return ["bg-red-500", "erro"];
   if ((pollMs ?? msg.poll_ms) === 0) return ["bg-sky-500", "pausado"];
   return ["bg-green-500 animate-pulse", "ao vivo"];
@@ -117,6 +143,24 @@ export const QUANTITIES = {
   voltage_set: { label: "Tensão programada", unit: "V", decimals: 3, text: "text-green-300", line: "#16a34a" },
   current_set: { label: "Corrente programada", unit: "A", decimals: 4, text: "text-amber-300", line: "#d97706" },
 };
+
+// Grandezas de um canal de gerador de funções. si: mostra com prefixo (kHz, MHz...)
+export const FGEN_QUANTITIES = {
+  frequency: { label: "Frequência", unit: "Hz", decimals: null, si: true, text: "text-sky-300", line: "#0284c7" },
+  amplitude: { label: "Amplitude", unit: "Vpp", decimals: 4, text: "text-green-300", line: "#16a34a" },
+  offset: { label: "Offset", unit: "V", decimals: 4, text: "text-amber-300", line: "#d97706" },
+};
+
+// Grandezas de um gerador de RF
+export const RF_QUANTITIES = {
+  frequency: { label: "Frequência", unit: "Hz", decimals: null, si: true, text: "text-sky-300", line: "#0284c7" },
+  level: { label: "Nível", unit: "dBm", decimals: 1, text: "text-green-300", line: "#16a34a" },
+};
+
+/** Tabela de grandezas que o Display/Gráfico oferecem para um tipo de equipamento. */
+export function quantitiesFor(type) {
+  return { power_supply: QUANTITIES, function_generator: FGEN_QUANTITIES, rf_generator: RF_QUANTITIES }[type] ?? null;
+}
 
 export function quantityValue(reading, quantity) {
   if (!reading) return undefined;

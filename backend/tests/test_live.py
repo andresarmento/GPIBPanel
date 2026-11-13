@@ -139,3 +139,30 @@ def test_only_watched_equipment_is_read(client):
         next_state(ws, a["id"])
     # tela fechou: ninguém mais é lido
     assert hub.watched() == set()
+
+
+def test_retry_backoff_for_unresponsive_equipment(client):
+    from app.live import RETRY_BACKOFF_S, LiveHub, _Poller
+
+    poller = _Poller()
+    base = {"poll_ms": 250, "cycle_ms": 10, "status": "timeout", "ok": False}
+    delays = []
+    for _ in range(6):
+        poller.timeouts += 1
+        delays.append(LiveHub._delay(poller, base))
+    assert delays == [2.0, 5.0, 10.0, 30.0, 30.0, 30.0]
+    assert delays[-1] == RETRY_BACKOFF_S[-1]
+    # respondeu de novo: volta ao intervalo normal
+    poller.timeouts = 0
+    assert LiveHub._delay(poller, {**base, "status": "ok", "ok": True}) == pytest.approx(0.24)
+    # erro comum (não timeout): 1 s; pausado: só quando cutucado
+    assert LiveHub._delay(poller, {**base, "status": "error"}) == 1.0
+    assert LiveHub._delay(poller, {**base, "poll_ms": 0}) is None
+
+    # na mensagem: quanto falta para a próxima tentativa
+    client.post("/api/bus/connect", json={"kind": "sim"})
+    lost = make(client, "Desligada", address=9, poll_ms=100)
+    with client.websocket_connect("/api/ws") as ws:
+        ws.send_json({"subscribe": [lost["id"]]})
+        msg = next_state(ws, lost["id"], status="timeout")
+        assert msg["retry_s"] == 2.0

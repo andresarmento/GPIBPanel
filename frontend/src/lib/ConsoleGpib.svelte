@@ -7,6 +7,9 @@
   let command = $state("*IDN?");
   let log = $state([]); // { kind: "out" | "in" | "err", text }
   let busy = $state(false);
+  // auto: termina em "?" = envia e lê (SCPI); "query": sempre envia e lê; "write": só envia.
+  // Aparelhos sem SCPI (ex.: Anritsu MG3601A) pedem dados sem "?" (FRRD): use "enviar e ler".
+  let mode = $state("auto");
 
   const quick = ["*IDN?", "SYST:ERR?", "MEAS:VOLT?", "MEAS:CURR?", "OUTP?", "VOLT:RANG?"];
 
@@ -14,11 +17,10 @@
     log.push({ kind, text, time: new Date().toLocaleTimeString() });
   }
 
-  // Comando terminado em "?" é consulta (espera resposta); senão só escreve
   async function send(cmd = command) {
     cmd = cmd.trim();
     if (!cmd || busy) return;
-    const isQuery = cmd.endsWith("?");
+    const isQuery = mode === "query" || (mode === "auto" && cmd.endsWith("?"));
     busy = true;
     add("out", `[${address}] ${cmd}`);
     try {
@@ -28,6 +30,20 @@
       } else {
         await api("/bus/write", { method: "POST", body: { address: Number(address), command: cmd } });
       }
+    } catch (e) {
+      add("err", e.message);
+    } finally {
+      busy = false;
+    }
+  }
+
+  // Só lê a resposta pendente (sem enviar nada)
+  async function read() {
+    if (busy) return;
+    busy = true;
+    add("out", `[${address}] (ler)`);
+    try {
+      add("in", (await api(`/bus/read/${Number(address)}`, { method: "POST" })).response);
     } catch (e) {
       add("err", e.message);
     } finally {
@@ -56,7 +72,10 @@
         {entry.text}
       </div>
     {:else}
-      <div class="text-slate-500">Comandos terminados em "?" esperam resposta; os outros só são enviados.</div>
+      <div class="text-slate-500">
+        No modo automático, comandos terminados em "?" esperam resposta e os outros só são enviados. Para
+        aparelhos sem SCPI (ex.: FRRD no Anritsu), escolha "enviar e ler" ou use o botão "ler".
+      </div>
     {/each}
   </div>
 
@@ -69,14 +88,27 @@
       class="min-w-48 flex-1 rounded bg-slate-800 px-2 py-1 font-mono"
       bind:value={command}
       {onkeydown}
-      placeholder="comando SCPI"
+      placeholder="comando"
     />
+    <select class="rounded bg-slate-800 px-2 py-1 text-sm" bind:value={mode} title="Quando ler a resposta">
+      <option value="auto">automático (? = lê)</option>
+      <option value="query">enviar e ler</option>
+      <option value="write">só enviar</option>
+    </select>
     <button
       class="rounded bg-sky-700 px-3 py-1 text-sm hover:bg-sky-600 disabled:opacity-50"
       onclick={() => send()}
       disabled={!connected || busy}
     >
       enviar
+    </button>
+    <button
+      class="rounded border border-slate-600 px-3 py-1 text-sm hover:bg-slate-800 disabled:opacity-50"
+      onclick={read}
+      disabled={!connected || busy}
+      title="Só lê a resposta pendente do instrumento, sem enviar comando"
+    >
+      ler
     </button>
   </div>
 

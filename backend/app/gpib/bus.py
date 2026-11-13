@@ -117,3 +117,7 @@ class GpibBus:
 
     async def query(self, address: int, command: str) -> str:
         return await asyncio.wrap_future(self.transaction(lambda t: t.query(address, command)))
+
+    async def read(self, address: int) -> str:
+        """Só lê a resposta pendente (ex.: depois de um pedido de dado sem "?")."""
+        return await asyncio.wrap_future(self.transaction(lambda t: t.read(address)))

@@ -11,7 +11,7 @@
 
   const colW = $derived((width - GAP_PX * (cols - 1)) / cols);
   const rows = $derived(
-    Math.max(1, ...widgets.map((w) => w.y + w.h), drag ? drag.rect.y + drag.rect.h : 0) + (editing ? 3 : 0),
+    Math.max(1, ...widgets.map((w) => w.y + w.h), drag ? drag.rect.y + drag.rect.h : 0) + (editing ? 6 : 0),
   );
 
   const clamp = (v, lo, hi) => Math.min(Math.max(v, lo), hi);

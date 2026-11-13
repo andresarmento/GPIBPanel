@@ -1,6 +1,6 @@
-from typing import Literal
+from typing import Annotated, Literal
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Path, Request
 from pydantic import BaseModel, Field
 
 from app.gpib.ar488 import AR488Transport, list_serial_ports
@@ -9,6 +9,8 @@ from app.gpib.simulated import SimulatedTransport
 from app.gpib.transport import MAX_ADDRESS, MIN_ADDRESS
 
 router = APIRouter(prefix="/bus", tags=["barramento"])
+
+Address = Annotated[int, Path(ge=MIN_ADDRESS, le=MAX_ADDRESS)]
 
 
 def _bus(request: Request) -> GpibBus:
@@ -72,3 +74,9 @@ async def write(body: CommandRequest, request: Request) -> dict:
 async def query(body: CommandRequest, request: Request) -> dict:
     response = await _bus(request).query(body.address, body.command)
     return {"response": response}
+
+
+@router.post("/read/{address}")
+async def read(address: Address, request: Request) -> dict:
+    """Só lê a resposta pendente do instrumento (sem enviar comando)."""
+    return {"response": await _bus(request).read(address)}

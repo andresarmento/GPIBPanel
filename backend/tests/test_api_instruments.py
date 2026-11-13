@@ -12,7 +12,7 @@ def client():
 
 
 def test_drivers(client):
-    assert [d["name"] for d in client.get("/api/drivers").json()] == ["E3632A"]
+    assert [d["name"] for d in client.get("/api/drivers").json()] == ["E3632A", "K2015", "HP33120A", "MG3601A"]
 
 
 def test_identify(client):

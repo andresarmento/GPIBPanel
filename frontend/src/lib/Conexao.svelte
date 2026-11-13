@@ -1,4 +1,5 @@
 <script>
+  // Conexão com o barramento GPIB (adaptador AR488 ou simulador). Fica na aba "Conexões".
   import { api } from "./api.js";
 
   // status: o que GET /api/bus devolve; onchange: avisa o App quando muda
@@ -48,7 +49,7 @@
 </script>
 
 <section class="rounded border border-slate-700 p-4">
-  <h2 class="mb-3 font-semibold">Conexão</h2>
+  <h2 class="mb-3 font-semibold">Barramento GPIB <span class="font-normal text-slate-400">(adaptador AR488)</span></h2>
 
   {#if status?.connected}
     <div class="flex flex-wrap items-center gap-3">

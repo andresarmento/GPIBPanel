@@ -10,10 +10,16 @@
 - O leitor pode ser "cutucado" (poke) para ler na hora: depois de um comando,
   de mudar o intervalo ou de conectar o barramento.
 
+- Equipamento que não responde (desligado, cabo solto) prende o barramento até o
+  timeout a cada tentativa. Por isso as novas tentativas vão se espaçando
+  (RETRY_BACKOFF_S) até ele voltar a responder; um poke tenta na hora.
+
 Mensagem enviada a cada leitura:
     {"type": "state", "id": 1, "ok": true, "status": "ok", "data": {...},
-     "error": null, "poll_ms": 1000, "cycle_ms": 180, "time": 1731470000.0}
+     "error": null, "poll_ms": 1000, "cycle_ms": 180, "time": 1731470000.0,
+     "retry_s": null}
 status: "ok" | "timeout" (instrumento não respondeu) | "error" | "disconnected".
+retry_s: em timeout, quantos segundos até a próxima tentativa automática.
 Se o equipamento for excluído: {"type": "removed", "id": 1}.
 """
 
@@ -35,6 +41,8 @@ log = logging.getLogger(__name__)
 
 # Depois de um erro, espera pelo menos isto antes de tentar de novo
 ERROR_RETRY_S = 1.0
+# Sem resposta: espera entre tentativas, crescendo a cada timeout seguido
+RETRY_BACKOFF_S = (2.0, 5.0, 10.0, 30.0)
 
 
 def open_equipment(eq: dict, transport: Transport) -> Instrument:
@@ -46,6 +54,7 @@ class _Poller:
     def __init__(self):
         self.wake = asyncio.Event()
         self.task: asyncio.Task | None = None
+        self.timeouts = 0  # timeouts seguidos
 
 
 class LiveHub:
@@ -131,21 +140,31 @@ class LiveHub:
                     await self.publish({"type": "removed", "id": eq_id})
                     return
                 msg = await self.read(eq)
+                poller.timeouts = poller.timeouts + 1 if msg["status"] == "timeout" else 0
+                delay = self._delay(poller, msg)
+                msg["retry_s"] = delay if msg["status"] == "timeout" else None
                 await self.publish(msg)
-                await self._wait(poller, msg)
+                await self._wait(poller, delay)
         finally:
             if self._pollers.get(eq_id) is poller:
                 del self._pollers[eq_id]
 
-    async def _wait(self, poller: _Poller, msg: dict) -> None:
-        """Espera o próximo ciclo, ou até ser cutucado."""
+    @staticmethod
+    def _delay(poller: _Poller, msg: dict) -> float | None:
+        """Segundos até a próxima leitura (None = só quando cutucado)."""
         if msg["poll_ms"] == 0 or msg["status"] == "disconnected":
-            timeout = None  # pausado / sem barramento: só lê de novo se cutucado
-        else:
-            # O intervalo conta do início de um ciclo ao início do próximo
-            timeout = max(msg["poll_ms"] - msg["cycle_ms"], 0) / 1000
-            if not msg["ok"]:
-                timeout = max(timeout, ERROR_RETRY_S)
+            return None  # pausado / sem barramento
+        # O intervalo conta do início de um ciclo ao início do próximo
+        delay = max(msg["poll_ms"] - msg["cycle_ms"], 0) / 1000
+        if msg["status"] == "timeout":
+            step = RETRY_BACKOFF_S[min(poller.timeouts, len(RETRY_BACKOFF_S)) - 1]
+            delay = max(delay, step)
+        elif not msg["ok"]:
+            delay = max(delay, ERROR_RETRY_S)
+        return delay
+
+    async def _wait(self, poller: _Poller, timeout: float | None) -> None:
+        """Espera o próximo ciclo, ou até ser cutucado."""
         try:
             await asyncio.wait_for(poller.wake.wait(), timeout)
         except asyncio.TimeoutError:

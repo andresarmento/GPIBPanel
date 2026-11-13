@@ -10,7 +10,7 @@
   const LAST_KEY = "gpibpanel.lastPanel";
 
   let list = $state([]);
-  let cols = $state(12);
+  let cols = $state(24); // vem do backend (grid_cols)
   let panel = $state(null); // painel aberto, como está salvo
   let draft = $state(null); // cópia em edição (null = modo usar)
   let configuring = $state(null); // id do widget com a janela de configuração aberta
@@ -22,7 +22,7 @@
 
   const editing = $derived(draft !== null);
   const shown = $derived(draft ?? panel);
-  const ctx = $derived({ equipment, drivers, busConnected });
+  const ctx = $derived({ equipment, drivers, busConnected, setWidgetConfig });
 
   async function guard(fn) {
     error = null;
@@ -73,6 +73,19 @@
       await open(p.id);
       list = (await api("/panels")).panels;
       startEdit();
+    });
+  }
+
+  // Ajuste feito de dentro do widget (ex.: tamanho do número do multímetro).
+  // Editando: entra no rascunho (vale ao salvar). Usando: salva o painel na hora.
+  async function setWidgetConfig(id, patch) {
+    const target = draft ?? panel;
+    const w = target?.widgets.find((x) => x.id === id);
+    if (!w) return;
+    Object.assign(w.config, patch);
+    if (draft) return;
+    await guard(async () => {
+      panel = await api(`/panels/${panel.id}`, { method: "PUT", body: { name: panel.name, widgets: panel.widgets } });
     });
   }
 
@@ -180,7 +193,7 @@
       Arraste para mover · canto inferior direito redimensiona · ⚙ configura · as mudanças só valem depois de salvar.
     </p>
   {:else if !busConnected && panel}
-    <p class="text-sm text-slate-400">Barramento desconectado: conecte acima para ler e controlar.</p>
+    <p class="text-sm text-slate-400">Barramento desconectado: conecte na aba Conexões para ler e controlar.</p>
   {/if}
 
   <!-- o painel (este elemento é o que vai para a tela cheia) -->

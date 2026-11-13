@@ -1,1 +1,6 @@
 @import "tailwindcss";
+
+/* fundo escuro na janela inteira (o conteúdo fica centralizado, com largura limitada) */
+body {
+  background-color: var(--color-slate-900);
+}

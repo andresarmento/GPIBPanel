@@ -69,7 +69,10 @@ def test_unknown_instrument(transport):
 
 
 def test_list_drivers():
-    (d,) = list_drivers()
+    d, dmm, fgen, rf = list_drivers()
+    assert rf["name"] == "MG3601A" and rf["type"] == "rf_generator"
+    assert dmm["name"] == "K2015" and dmm["type"] == "multimeter"
+    assert fgen["name"] == "HP33120A" and fgen["type"] == "function_generator"
     assert d["name"] == "E3632A" and d["type"] == "power_supply"
     assert [r["name"] for r in d["channels"][0]["ranges"]] == ["P15V", "P30V"]
 

@@ -11,8 +11,11 @@ foi testada e validada.
 | 3 | Cadastro de equipamentos | ✅ concluída |
 | 4 | Controle em tempo real | ✅ concluída (validada no hardware real) |
 | 5 | Painéis | ✅ concluída |
-| 6 | Scripts | ⏳ próxima |
-| 7 | Acabamento | — |
+| 6 | Novos drivers (Keithley 2015, HP 33120A, Anritsu MG3601A) | ✅ concluída (validada no hardware real) |
+| 7 | Scripts | ⏳ próxima |
+| 8 | Acabamento | — |
+| 9 | Servidor MCP | — |
+| 10 | Drivers genéricos (fonte, multímetro, gerador, osciloscópio) | — |
 
 ---
 
@@ -100,13 +103,81 @@ fonte mostra "sem resposta" e volta sozinho ao religar.
 na grade, salvar, recarregar a página e ele voltar igual; controles e gráfico
 funcionando ao vivo; tela cheia ok; editar → cancelar descarta as mudanças.
 
-## Fase 6 — Scripts
+## Fase 6 — Novos drivers ✅
 
-- Scripts em Python rodando no servidor, com editor Monaco, log ao vivo e botão de parar.
+Um driver por vez, cada um testado no hardware antes de passar ao próximo.
+Mesmas camadas da E3632A: o que é comum vai para o contrato do tipo de equipamento,
+o específico do modelo fica só no driver.
 
-## Fase 7 — Acabamento
+1. **Multímetro Keithley 2015** ✅ — novo tipo de equipamento (multímetro).
+   - Contrato `Multimeter`: uma função por vez (V DC/AC, A DC/AC, Ω 2/4 fios, Hz), faixa
+     automática ou manual, NPLC; sobrecarga mostrada como OVERFLOW.
+   - Driver `K2015`: lê com `:SENS:DATA:FRES?` mantendo o disparo contínuo (o display do
+     aparelho continua atualizando). Distorção (THD/SINAD) e gerador interno ficam para depois.
+   - Painéis: widget **Multímetro**; Display e Gráfico aceitam multímetro.
+2. **Gerador de funções HP 33120A** ✅ — novo tipo (gerador de funções).
+   - Contrato `FunctionGenerator`: canais; formas SIN, SQU, TRI, RAMP, ruído e DC;
+     frequência, amplitude (sempre Vpp), offset, ciclo de trabalho e carga (50 Ω /
+     alta impedância, mantendo o mesmo sinal ao trocar); liga/desliga opcional.
+   - Driver `HP33120A`: forma, frequência, amplitude e offset num único `APPL`;
+     ciclo de trabalho por `PULS:DCYC`. A saída do 33120A é sempre ativa.
+     Modulação, varredura, burst e formas arbitrárias ficam para depois (TODO.md).
+   - Painéis: widget **Gerador** (ícones das formas de onda); Display e Gráfico
+     mostram frequência, amplitude ou offset.
+3. **Gerador de RF Anritsu MG3601A** ✅ — novo tipo (gerador de RF).
+   - Contrato `RFGenerator`: frequência (Hz), nível (sempre dBm) e liga/desliga do RF.
+   - Driver `MG3601A`: aparelho sem SCPI e sem `*IDN?` — códigos Anritsu (`FR…HZ`,
+     `AP…DBM`, `RO`/`RF`), leitura por pedidos de dado (`FRRD`, `APRD`), erros por `SURD`.
+     RF desligado é detectado pela resposta do `APRD` (`+000000000E+00`). Identificado
+     pelo formato da resposta ao `FRRD` ("detectar" tenta isso quando o `*IDN?` não
+     tem o formato padrão). Nunca mandar `?` para ele (um `FRRD?` mudou a frequência).
+     O buzzer bipa a cada mensagem GPIB; desligado com `SP01`.
+   - Painéis: widget **Gerador RF**; Display e Gráfico mostram frequência ou nível.
+
+**Mudanças gerais feitas na Fase 6:**
+- A aba **Controle** (que lia todos os equipamentos ao mesmo tempo) saiu. No lugar,
+  cada equipamento da aba **Equipamentos** tem o botão **▶ ao vivo**, que abre uma
+  janela com leitura e controle em tempo real (um equipamento por vez).
+- Equipamento que não responde é tentado de novo cada vez mais espaçado
+  (2 s → 5 s → 10 s → 30 s), para não prender o barramento com timeouts.
+- Intervalo de leitura só no cadastro do equipamento; janela "ao vivo" e widgets o
+  mostram discretamente no rodapé.
+- Widgets Fonte, Multímetro e Gerador: display em cima e ajustes logo abaixo; tamanho
+  do número em px por controle deslizante (16–200 px, diminui só se não couber);
+  opções avançadas no ícone do canto inferior direito. O Display também tem tamanho em px.
+- Grade dos painéis com o dobro de resolução (24 colunas, linhas de 24 px); a migração
+  4 do banco converteu os painéis salvos.
+- Console GPIB: modo de leitura (automático / enviar e ler / só enviar) e botão
+  **ler**, para aparelhos sem SCPI.
+- Conexão GPIB virou a aba **Conexões**; o topo mostra só um indicador discreto do
+  barramento. Conteúdo centralizado, até 1600 px de largura.
+
+**Pronto quando** (para cada driver): cadastrar o equipamento, responder ao `*IDN?`
+(ou equivalente), controlar e ler na janela "ao vivo" e usar nos painéis.
+
+## Fase 7 — Scripts
+
+- Scripts em Python rodando no servidor, com editor de código, log ao vivo e botão de parar.
+- Planejamento e decisões em [TODO.md](TODO.md) (seção Scripts).
+
+## Fase 8 — Acabamento
 
 - Estado seguro (desligar saídas em erro/encerramento), exportação CSV,
   empacotamento (FastAPI servindo o frontend compilado, um servidor só).
 - **Histórico das leituras** guardado no backend (o gráfico da Fase 5 só tem o que
   chegou desde que a página abriu) e exportação dos dados do gráfico em **CSV**.
+
+## Fase 9 — Servidor MCP
+
+- Servidor MCP expondo os equipamentos (e scripts) para uso por assistentes de IA.
+
+## Fase 10 — Drivers genéricos
+
+Drivers que funcionam com qualquer aparelho do tipo que siga os comandos SCPI
+padrão, para usar equipamentos que ainda não têm driver próprio:
+
+- **Fonte** genérica.
+- **Multímetro** genérico.
+- **Gerador de funções** genérico.
+- **Osciloscópio** genérico — também é um tipo de equipamento novo.
+

@@ -2,7 +2,7 @@
 
 Cada widget tem:
     id      texto único dentro do painel (gerado pela tela)
-    type    "psu_channel" | "display" | "output_button" | "text" | "chart"
+    type    "psu_channel" | "dmm" | "fgen" | "rfgen" | "display" | "output_button" | "text" | "chart"
     x, y    posição na grade (coluna, linha), a partir de 0
     w, h    largura e altura em células
     config  configuração do tipo (equipamento, canal, grandeza...): quem
@@ -21,12 +21,12 @@ from pydantic import BaseModel, Field, model_validator
 from app.db import Database
 from app.errors import Conflict, Invalid, NotFound
 
-GRID_COLS = 12
-MAX_ROWS = 200
+GRID_COLS = 24
+MAX_ROWS = 400
 MAX_WIDGETS = 100
 MAX_NAME = 100
 
-WidgetType = Literal["psu_channel", "display", "output_button", "text", "chart"]
+WidgetType = Literal["psu_channel", "dmm", "fgen", "rfgen", "display", "output_button", "text", "chart"]
 
 
 class Widget(BaseModel):

@@ -25,7 +25,36 @@ def client():
 def test_migration_version(tmp_path):
     db = Database(tmp_path / "t.db")
     with db.connect() as con:
-        assert con.execute("PRAGMA user_version").fetchone()[0] == len(MIGRATIONS) == 3
+        assert con.execute("PRAGMA user_version").fetchone()[0] == len(MIGRATIONS) == 4
+
+
+def test_migration_doubles_grid(tmp_path):
+    """Painéis salvos na grade de 12 colunas continuam iguais na de 24."""
+    import json
+    import sqlite3
+
+    path = tmp_path / "old.db"
+    con = sqlite3.connect(path)
+    for sql in MIGRATIONS[:3]:
+        con.execute(sql)
+    old = [
+        {"id": "a", "type": "text", "x": 1, "y": 2, "w": 3, "h": 4, "config": {"text": "oi"}},
+        {"id": "b", "type": "chart", "x": 6, "y": 0, "w": 6, "h": 4, "config": {"window_s": 60}},
+    ]
+    con.execute(
+        "INSERT INTO panels (name, widgets, created_at, updated_at) VALUES ('P', ?, 'x', 'x'), ('Vazio', '[]', 'x', 'x')",
+        (json.dumps(old),),
+    )
+    con.execute("PRAGMA user_version = 3")
+    con.commit()
+    con.close()
+
+    store = PanelStore(Database(path))
+    p, empty = sorted(store.list(), key=lambda x: x["name"])
+    a, b = store.get(p["id"])["widgets"]
+    assert (a["x"], a["y"], a["w"], a["h"]) == (2, 4, 6, 8) and a["config"] == {"text": "oi"}
+    assert (b["x"], b["w"]) == (12, 12) and b["x"] + b["w"] == GRID_COLS
+    assert store.get(empty["id"])["widgets"] == []
 
 
 def test_crud(store):
@@ -90,3 +119,19 @@ def test_api(client):
 
     assert client.delete(f"/api/panels/{pid}").status_code == 204
     assert client.get(f"/api/panels/{pid}").status_code == 404
+
+
+def test_widget_types_match_frontend():
+    """Todo tipo de widget do frontend (catalogo.js) precisa ser aceito pelo backend."""
+    import re
+    import typing
+    from pathlib import Path
+
+    from app.panels import WidgetType
+
+    catalog = Path(__file__).parents[2] / "frontend" / "src" / "lib" / "painel" / "catalogo.js"
+    text = catalog.read_text(encoding="utf-8")
+    block = text[text.index("export const WIDGET_TYPES") :]
+    block = block[: block.index("\n};")]
+    frontend = set(re.findall(r"^  (\w+): \{", block, re.M))
+    assert frontend == set(typing.get_args(WidgetType))

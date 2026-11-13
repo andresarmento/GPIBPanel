@@ -1,14 +1,19 @@
 <script>
   import { api } from "./api.js";
+  import EquipamentoAoVivo from "./EquipamentoAoVivo.svelte";
   import EquipamentoForm from "./EquipamentoForm.svelte";
+  import { pollLabel } from "./live.svelte.js";
 
-  let { connected } = $props();
+  // visible: aba aberta (a janela "ao vivo" só lê enquanto a aba está visível)
+  let { connected, visible = true } = $props();
 
   let items = $state([]);
   let drivers = $state([]);
   let editing = $state(null); // null = fechado, "new" = novo, ou o equipamento em edição
   let checks = $state({}); // id -> resultado de /check (ou { error })
   let error = $state(null);
+  // Equipamento aberto na janela "ao vivo" (um por vez: só ele ocupa o barramento)
+  let liveEq = $state(null);
 
   // Endereços usados por mais de um equipamento (não pode haver dois ligados no mesmo barramento)
   const dupAddresses = $derived(
@@ -80,7 +85,7 @@
     {/key}
   {/if}
 
-  <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+  <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
     {#each items as eq (eq.id)}
       {@const c = checks[eq.id]}
       <div class="flex flex-col overflow-hidden rounded border border-slate-700 bg-slate-800/40">
@@ -99,6 +104,7 @@
               {eq.address}{dupAddresses.has(eq.address) ? " ⚠" : ""}
             </span>
           </div>
+          <div class="text-xs text-slate-500">{pollLabel(eq.poll_ms)}</div>
           {#if eq.notes}
             <div class="whitespace-pre-line text-slate-400">{eq.notes}</div>
           {/if}
@@ -122,6 +128,13 @@
           {/if}
 
           <div class="mt-auto flex gap-3 pt-2 text-sm">
+            <button
+              class="font-semibold text-green-400 hover:text-green-300"
+              onclick={() => (liveEq = eq)}
+              title="Leitura e controle em tempo real"
+            >
+              ▶ ao vivo
+            </button>
             <button class="text-sky-400 hover:text-sky-300" onclick={() => (editing = eq)}>editar</button>
             <button
               class="text-sky-400 hover:text-sky-300 disabled:text-slate-600"
@@ -140,3 +153,32 @@
     {/each}
   </div>
 </section>
+
+{#if liveEq}
+  <!-- Janela "ao vivo": fechar (✕, Esc ou clique fora) para a leitura -->
+  <div
+    class="fixed inset-0 z-50 flex items-start justify-center overflow-auto bg-black/60 p-4 sm:p-8"
+    role="presentation"
+    onclick={(e) => e.target === e.currentTarget && (liveEq = null)}
+  >
+    <div class="w-full max-w-4xl rounded bg-slate-900 shadow-xl">
+      <div class="flex justify-end px-1 pt-1">
+        <button
+          class="rounded px-2 text-lg text-slate-400 hover:bg-slate-800 hover:text-slate-100"
+          onclick={() => (liveEq = null)}
+          title="Fechar (Esc)"
+        >
+          ✕
+        </button>
+      </div>
+      <EquipamentoAoVivo
+        equipment={liveEq}
+        driver={drivers.find((d) => d.name === liveEq.driver)}
+        {visible}
+        busConnected={connected}
+      />
+    </div>
+  </div>
+{/if}
+
+<svelte:window onkeydown={(e) => e.key === "Escape" && liveEq && (liveEq = null)} />

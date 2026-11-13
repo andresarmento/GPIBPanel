@@ -17,24 +17,51 @@ fontes também: o que for comum entra no contrato `PowerSupply`, o específico f
   - OCP: `CURR:PROT <nível>`, `CURR:PROT:STAT ON|OFF`
   - Ver se disparou: `VOLT:PROT:TRIP?` / `CURR:PROT:TRIP?`; rearmar: `VOLT:PROT:CLE` / `CURR:PROT:CLE`
   - Na tela: campos de nível + liga/desliga, alarme visível "OVP/OCP disparou" com botão rearmar.
-  - Relaciona-se com o "estado seguro" da Fase 7.
+  - Relaciona-se com o "estado seguro" da Fase 8.
 - [ ] **Leitura mais rápida** (otimização do ciclo, hoje 6 consultas separadas):
   - `APPL?` devolve tensão e corrente programadas numa consulta só;
   - juntar consultas numa mensagem (`MEAS:VOLT?;:MEAS:CURR?`) para economizar idas e voltas no GPIB;
   - ler faixa/saída/valores programados com menos frequência que as medições
     (só mudam por comando — ou pelo painel frontal).
 - [ ] **Mensagem no display da fonte**: `DISP:TEXT "SCRIPT RODANDO"` / `DISP:TEXT:CLE`
-      (ex.: mostrar na bancada que um script está no controle — Fase 6).
+      (ex.: mostrar na bancada que um script está no controle — Fase 7).
 - [ ] **Memórias de estado**: `*SAV 1..3` / `*RCL 1..3` como presets rápidos
       (ex.: "5 V / 1 A", "12 V / 0,5 A").
 - [ ] **Trigger (mudança sincronizada)**: `VOLT:TRIG`, `CURR:TRIG`, `TRIG:SOUR BUS|IMM`,
-      `TRIG:DEL`, `*TRG` — aplicar valores em várias fontes no mesmo instante (scripts, Fase 6).
+      `TRIG:DEL`, `*TRG` — aplicar valores em várias fontes no mesmo instante (scripts, Fase 7).
 - [ ] **Devolver ao painel frontal (LOCAL)**: botão que manda `++loc` pelo AR488 para
       destravar os botões da fonte sem desconectar (fica no transporte, não no driver).
 
+## Multímetros
+
+Recursos do **Keithley 2015** que ficaram fora da primeira versão (Fase 6):
+
+- [ ] **Distorção**: THD, THD+N e SINAD (frequência fundamental, número de harmônicas, filtros).
+- [ ] **Gerador interno** do 2015 (saída de sinal para medir distorção).
+- [ ] Outras funções: temperatura, continuidade, diodo, período.
+- [ ] Opções avançadas: filtro de média (tipo e contagem), autozero.
+
+## Geradores de funções
+
+Recursos do **HP 33120A** que ficaram fora da primeira versão (Fase 6):
+
+- [ ] **Modulação**: AM, FM e FSK.
+- [ ] **Varredura** (sweep) de frequência e **burst**.
+- [ ] **Formas arbitrárias** (USER): escolher entre as gravadas no aparelho e enviar novas.
+- [ ] Mensagem no display do aparelho (`DISP:TEXT`), como na fonte.
+
+## Geradores de RF
+
+Recursos do **Anritsu MG3601A** que ficaram fora da primeira versão (Fase 6):
+
+- [ ] **Modulação**: AM, FM e ΦM, interna (400 Hz / 1 kHz / oscilador AF) ou externa.
+- [ ] Offsets de frequência e de nível (`FO`, `LO`), memórias (`ST`/`RL`), passo ΔF.
+- [ ] Mandar `SP01` (buzzer desligado) ao conectar, se o aparelho voltar a bipar depois de religado.
+- [ ] Confirmar no aparelho: 0,0 dBm com RF ligado deve ser lido como ligado (`E-01`).
+
 ## Scripts
 
-Planejamento da **Fase 6**: scripts em Python escritos na página e executados no servidor.
+Planejamento da **Fase 7**: scripts em Python escritos na página e executados no servidor.
 
 **Decidido (2026-11-13):**
 - [x] **Nomes da API do script em inglês**: `equipment("...")`, `sleep(0.5)`, e os métodos
@@ -65,4 +92,4 @@ Planejamento da **Fase 6**: scripts em Python escritos na página e executados n
   mesmos drivers e validações de limite; mudanças aparecem na hora nos painéis.
 - Log ao vivo (`print`), erro com o número da linha, botão **parar** que interrompe
   na hora (inclusive dentro de `sleep()` e de laços).
-- Desligar saídas automaticamente ao parar/dar erro → Fase 7 ("estado seguro").
+- Desligar saídas automaticamente ao parar/dar erro → Fase 8 ("estado seguro").

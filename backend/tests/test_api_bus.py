@@ -55,3 +55,12 @@ def test_ar488_bad_port_is_502(client):
 
 def test_ports_lists(client):
     assert isinstance(client.get("/api/bus/ports").json(), list)
+
+
+def test_read_pending_reply(client):
+    """Pedido de dado sem "?" (ex.: FRRD no Anritsu): envia e depois só lê."""
+    client.post("/api/bus/connect", json={"kind": "sim"})
+    assert client.post("/api/bus/write", json={"address": 13, "command": "FRRD"}).status_code == 200
+    assert client.post("/api/bus/read/13").json() == {"response": "+100000000E+00"}
+    assert client.post("/api/bus/read/13").status_code == 504  # nada pendente: timeout
+    assert client.post("/api/bus/read/99").status_code == 422

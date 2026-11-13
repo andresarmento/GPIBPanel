@@ -41,6 +41,16 @@ MIGRATIONS = [
         updated_at  TEXT NOT NULL
     )
     """,
+    # 4 (Fase 6): grade com o dobro de resolução (12 -> 24 colunas, linhas de 56 -> 24 px);
+    # dobra posição e tamanho dos widgets salvos, para os painéis ficarem iguais
+    """
+    UPDATE panels SET widgets = (
+        SELECT COALESCE(json_group_array(json_set(value,
+            '$.x', json_extract(value, '$.x') * 2, '$.y', json_extract(value, '$.y') * 2,
+            '$.w', json_extract(value, '$.w') * 2, '$.h', json_extract(value, '$.h') * 2)), '[]')
+        FROM json_each(panels.widgets)
+    )
+    """,
 ]
 
 

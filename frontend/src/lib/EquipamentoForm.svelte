@@ -2,6 +2,7 @@
   // Formulário de novo equipamento / edição. Chama onsaved(equipamento) ou oncancel().
   import { untrack } from "svelte";
   import { api, upload } from "./api.js";
+  import { POLL_INTERVALS } from "./live.svelte.js";
 
   let { equipment = null, drivers, connected, onsaved, oncancel } = $props();
 
@@ -11,6 +12,11 @@
   let address = $state(initial?.address ?? 5);
   let driver = $state(initial?.driver ?? untrack(() => drivers[0]?.name) ?? "");
   let notes = $state(initial?.notes ?? "");
+  let pollMs = $state(initial?.poll_ms ?? 1000);
+  // Valor fora da lista (ex.: gravado por uma versão antiga) continua aparecendo
+  const intervals = POLL_INTERVALS.some(([ms]) => ms === pollMs)
+    ? POLL_INTERVALS
+    : [...POLL_INTERVALS, [pollMs, `${pollMs} ms`]];
 
   let file = $state(null); // foto nova escolhida
   let preview = $state(initial?.image_url ?? null);
@@ -65,6 +71,10 @@
       let saved = initial
         ? await api(`/equipment/${initial.id}`, { method: "PUT", body })
         : await api("/equipment", { method: "POST", body });
+      // Intervalo tem rota própria: avisa as telas abertas na hora
+      if (Number(pollMs) !== saved.poll_ms) {
+        saved = await api(`/equipment/${saved.id}/poll`, { method: "PATCH", body: { poll_ms: Number(pollMs) } });
+      }
       if (file) saved = await upload(`/equipment/${saved.id}/image`, file);
       else if (removeImage && initial?.image_url) saved = await api(`/equipment/${saved.id}/image`, { method: "DELETE" });
       onsaved(saved);
@@ -130,6 +140,17 @@
       {#if detected}
         <div class="font-mono text-xs text-slate-400">*IDN? → {detected}</div>
       {/if}
+      <label class="flex flex-col gap-1">
+        intervalo de leitura
+        <select class="w-72 rounded bg-slate-800 px-2 py-1" bind:value={pollMs}>
+          {#each intervals as [ms, label]}
+            <option value={ms}>{label}</option>
+          {/each}
+        </select>
+        <span class="text-xs text-slate-500">
+          Vale para a janela “ao vivo” e todos os painéis. Aparelho lento (ex.: multímetro em AC) pede intervalo maior.
+        </span>
+      </label>
       <label class="flex flex-col gap-1">
         observações
         <textarea class="rounded bg-slate-800 px-2 py-1" rows="2" bind:value={notes}></textarea>
