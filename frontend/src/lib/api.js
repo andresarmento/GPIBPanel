@@ -14,3 +14,13 @@ export async function api(path, { method = "GET", body } = {}) {
   }
   return data;
 }
+
+// Envia um arquivo (multipart) no campo "file".
+export async function upload(path, file, method = "PUT") {
+  const form = new FormData();
+  form.append("file", file);
+  const r = await fetch(`/api${path}`, { method, body: form });
+  const data = await r.json().catch(() => null);
+  if (!r.ok) throw new Error(typeof data?.detail === "string" ? data.detail : `HTTP ${r.status}`);
+  return data;
+}

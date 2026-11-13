@@ -2,10 +2,19 @@
   import { api } from "./lib/api.js";
   import Conexao from "./lib/Conexao.svelte";
   import ConsoleGpib from "./lib/ConsoleGpib.svelte";
+  import Equipamentos from "./lib/Equipamentos.svelte";
+  import TesteDriver from "./lib/TesteDriver.svelte";
 
   let health = $state(null);
   let error = $state(null);
   let bus = $state(null); // status do barramento (GET /api/bus)
+
+  const tabs = [
+    ["equipamentos", "Equipamentos"],
+    ["driver", "Teste de driver"],
+    ["console", "Console GPIB"],
+  ];
+  let tab = $state("equipamentos");
 
   async function check() {
     error = null;
@@ -39,9 +48,26 @@
   </div>
 
   {#if health}
-    <div class="flex max-w-4xl flex-col gap-4">
+    <div class="flex max-w-5xl flex-col gap-4">
       <Conexao status={bus} onchange={(s) => (bus = s)} />
-      <ConsoleGpib connected={bus?.connected} />
+
+      <nav class="flex gap-1 border-b border-slate-700">
+        {#each tabs as [id, label]}
+          <button
+            class="-mb-px rounded-t border px-3 py-1.5 text-sm {tab === id
+              ? 'border-slate-700 border-b-slate-900 bg-slate-900 text-slate-100'
+              : 'border-transparent text-slate-400 hover:text-slate-200'}"
+            onclick={() => (tab = id)}
+          >
+            {label}
+          </button>
+        {/each}
+      </nav>
+
+      <!-- "hidden" em vez de {#if}: cada aba mantém seu estado (ex.: histórico do console) -->
+      <div class:hidden={tab !== "equipamentos"}><Equipamentos connected={bus?.connected} /></div>
+      <div class:hidden={tab !== "driver"}><TesteDriver connected={bus?.connected} /></div>
+      <div class:hidden={tab !== "console"}><ConsoleGpib connected={bus?.connected} /></div>
     </div>
   {/if}
 </main>
